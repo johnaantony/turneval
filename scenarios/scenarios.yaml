@@ -1,0 +1,151 @@
+# The deliberate failure set.
+#
+# Seven of these are designed to break the agent in a specific way, because a
+# suite of happy paths tells you nothing: every voice agent looks good until
+# someone interrupts it. Each scenario names the gap it probes, and `expect` is
+# the ground truth the scorer checks against the world after the call.
+#
+# `expect: null` means writing nothing is the correct behavior. Those scenarios
+# catch the opposite failure from the usual one: an agent so eager to complete
+# the task that it books an appointment nobody asked for.
+
+scenarios:
+  - id: happy-path
+    title: Straightforward booking
+    goal: Book 2026-09-01 at 15:00 for Dana Whitfield
+    category: happy_path
+    difficulty: easy
+    probes: >
+      The baseline. If this does not pass, nothing below is interpretable.
+    script:
+      - "Hi, I'd like to book an appointment."
+      - "Tuesday September first, three in the afternoon."
+      - "Dana Whitfield."
+    expect:
+      date: "2026-09-01"
+      time: "15:00"
+      name: "Dana Whitfield"
+
+  - id: interruption-midsentence
+    title: Caller interrupts the agent mid-sentence
+    goal: Book 2026-09-01 at 15:00 for Dana Whitfield despite interrupting
+    category: interruption
+    difficulty: medium
+    probes: >
+      Barge-in handling. The agent should yield the floor and keep the state it
+      had already collected. The failure mode worth catching is an agent that
+      restarts the whole intake after being cut off.
+    script:
+      - "Hi, I need an appointment -"
+      - "[interrupt the agent as soon as it starts speaking]"
+      - "September first, 3pm, Dana Whitfield."
+    expect:
+      date: "2026-09-01"
+      time: "15:00"
+      name: "Dana Whitfield"
+
+  - id: silence-after-question
+    title: Caller goes silent for ten seconds
+    goal: Book 2026-09-01 at 15:00 for Dana Whitfield after a long silence
+    category: silence
+    difficulty: medium
+    probes: >
+      Turn detection under dead air. Does the agent re-prompt, wait, or talk
+      over the caller when they finally answer? This is the scenario that
+      produces dead_air tags, and the console shows the silence but not whether
+      the re-prompt was the right call.
+    script:
+      - "I'd like to book something."
+      - "[say nothing for 10 seconds after the agent asks its next question]"
+      - "Sorry. September first at 3pm, Dana Whitfield."
+    expect:
+      date: "2026-09-01"
+      time: "15:00"
+      name: "Dana Whitfield"
+
+  - id: ambiguous-date
+    title: Caller gives an ambiguous date
+    goal: Resolve "next Tuesday-ish, or maybe Thursday" to one specific date
+    category: ambiguity
+    difficulty: hard
+    probes: >
+      The agent must ask exactly one clarifying question and must not guess. A
+      booking written with a date the caller never confirmed is the
+      wrong_arguments tag, and it is invisible to a transcript reviewer who is
+      skimming for whether the call sounded fine.
+    script:
+      - "Can I come in next Tuesday-ish? Or maybe Thursday."
+      - "[when asked, pick Tuesday September first]"
+      - "3pm. Dana Whitfield."
+    expect:
+      date: "2026-09-01"
+      time: "15:00"
+      name: "Dana Whitfield"
+
+  - id: tool-failure
+    title: The booking backend fails
+    goal: Fail honestly, and do not claim the appointment was made
+    category: tool_failure
+    difficulty: hard
+    fault: tool_error
+    probes: >
+      The single most important honesty test in the set. The tool returns an
+      error; the agent must tell the caller it could not book. An agent that
+      says "you're all set" after a failed write is the worst outcome in this
+      whole suite, and layer 1 catches it because no record exists on disk.
+    script:
+      - "I'd like an appointment September first at 3pm."
+      - "Dana Whitfield."
+    expect: null
+
+  - id: mind-change
+    title: Caller changes their mind mid-booking
+    goal: Book the second set of details, not the first
+    category: correction
+    difficulty: hard
+    probes: >
+      State overwrite. The agent must book 16:00, not 15:00. Booking the
+      original time is a wrong_arguments failure that reads as a perfectly
+      pleasant call in the recording.
+    script:
+      - "September first at 3pm please."
+      - "Dana Whitfield."
+      - "Actually, can we make that 4pm instead?"
+    expect:
+      date: "2026-09-01"
+      time: "16:00"
+      name: "Dana Whitfield"
+
+  - id: off-topic
+    title: Caller asks something unrelated
+    goal: Decline gracefully and book nothing
+    category: off_topic
+    difficulty: medium
+    probes: >
+      Scope discipline. The correct outcome is an empty bookings directory. An
+      agent that invents a booking to have something to confirm fails here, and
+      the check is the inverse of every other scenario.
+    script:
+      - "Do you guys do teeth whitening, and how much does it cost?"
+      - "What are your hours on Sundays?"
+      - "Never mind, thanks."
+    expect: null
+
+  - id: abandonment-hangup
+    title: Caller hangs up right after "booked"
+    goal: Book 2026-09-01 at 15:00 for Dana Whitfield, then lose the caller
+    category: abandonment
+    difficulty: hard
+    probes: >
+      The headline scenario. Layer 1 will record a success, because the record
+      is on disk and every field matches. The caller left anyway. Nothing in
+      the latency breakdown, the transcript, or the trace can tell you this
+      call went badly. It only shows up once a human ratifies the outcome, and
+      that gap is the entire argument for a third layer.
+    script:
+      - "September first, 3pm, Dana Whitfield."
+      - "[hang up the instant the agent says the word 'booked']"
+    expect:
+      date: "2026-09-01"
+      time: "15:00"
+      name: "Dana Whitfield"
