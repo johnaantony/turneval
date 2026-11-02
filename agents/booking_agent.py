@@ -17,6 +17,7 @@ the SDK, or the network.
 
 from __future__ import annotations
 
+import atexit
 import json
 import logging
 import os
@@ -64,6 +65,8 @@ short sentence.
 
 Rules:
 - Keep every reply to one or two sentences. You are on a phone call, not writing.
+- Today is {today}. Resolve relative or yearless dates to the next future
+  occurrence and never book a date in the past.
 - Never guess a date or a time. If the caller is vague ("next Tuesday-ish"),
   ask one clarifying question and offer a specific date.
 - If the caller changes their mind, use the latest values they gave you.
@@ -85,7 +88,8 @@ def _utc_now() -> str:
 
 class BookingAgent(Agent):
     def __init__(self, session_id: str) -> None:
-        super().__init__(instructions=INSTRUCTIONS)
+        today = datetime.now().strftime("%A, %B %d, %Y")
+        super().__init__(instructions=INSTRUCTIONS.format(today=today))
         self._session_id = session_id
         self._recorder: TraceRecorder | None = None
 
@@ -181,6 +185,7 @@ class TraceRecorder:
         self._last_activity = time.monotonic()
 
         self._pending: dict[str, _PendingTurn] = {}
+        self._seen_user_items: set[str] = set()
         self._tool_calls: list[dict[str, Any]] = []
         self._interrupted_next = False
         self._talked_over_next = False
@@ -264,6 +269,14 @@ class TraceRecorder:
     def _on_user_transcript(self, event: Any) -> None:
         if not event.is_final:
             return
+        # The SDK can emit more than one final transcript for the same chat item
+        # (a formatted and a raw variant), which doubled every user turn on the
+        # first real call. Keep the first final per item.
+        item_id = getattr(event, "item_id", None)
+        if item_id is not None:
+            if item_id in self._seen_user_items:
+                return
+            self._seen_user_items.add(item_id)
         self._emit_turn(role="user", text=event.transcript, speech_id=None)
 
     def _on_item(self, event: Any) -> None:
@@ -293,9 +306,13 @@ class TraceRecorder:
         self._last_activity = now
 
         pending = self._pending.pop(speech_id, None) if speech_id else None
-        if pending is None and role == "agent":
-            # Fall back to the unkeyed bucket: some providers omit speech_id.
-            pending = self._pending.pop("_", None)
+        if pending is None and role == "agent" and self._pending:
+            # conversation_item_added carries the chat item id while metrics are
+            # keyed by speech_id, so a direct match normally misses. The metrics
+            # for this turn arrived before the item did: take the oldest entry.
+            # (Found on the first real call: every turn's latency and tokens
+            # were silently dropped.)
+            pending = self._pending.pop(next(iter(self._pending)))
         pending = pending or _PendingTurn()
 
         record: dict[str, Any] = {
@@ -357,11 +374,13 @@ async def entrypoint(ctx: JobContext) -> None:
 
     logger.info("session %s starting (scenario=%s)", session_id, SCENARIO_ID)
 
-    try:
-        await session.start(agent=agent, room=ctx.room)
-    finally:
-        recorder.close()
-        logger.info("trace written to %s", recorder.path)
+    # session.start() returns once the session is LIVE, not when the call ends,
+    # so closing the recorder in a finally here would freeze the trace at zero
+    # turns. The recorder closes itself on the session's close event; atexit is
+    # the backup for console mode, where the process can exit without one.
+    atexit.register(recorder.close)
+    await session.start(agent=agent, room=ctx.room)
+    logger.info("session live; tracing to %s", recorder.path)
 
 
 if __name__ == "__main__":

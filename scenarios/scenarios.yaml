@@ -12,23 +12,23 @@
 scenarios:
   - id: happy-path
     title: Straightforward booking
-    goal: Book 2026-09-01 at 15:00 for Dana Whitfield
+    goal: Book 2026-12-01 at 15:00 for Dana Whitfield
     category: happy_path
     difficulty: easy
     probes: >
       The baseline. If this does not pass, nothing below is interpretable.
     script:
       - "Hi, I'd like to book an appointment."
-      - "Tuesday September first, three in the afternoon."
+      - "Tuesday December first, three in the afternoon."
       - "Dana Whitfield."
     expect:
-      date: "2026-09-01"
+      date: "2026-12-01"
       time: "15:00"
       name: "Dana Whitfield"
 
   - id: interruption-midsentence
     title: Caller interrupts the agent mid-sentence
-    goal: Book 2026-09-01 at 15:00 for Dana Whitfield despite interrupting
+    goal: Book 2026-12-01 at 15:00 for Dana Whitfield despite interrupting
     category: interruption
     difficulty: medium
     probes: >
@@ -38,15 +38,15 @@ scenarios:
     script:
       - "Hi, I need an appointment -"
       - "[interrupt the agent as soon as it starts speaking]"
-      - "September first, 3pm, Dana Whitfield."
+      - "December first, 3pm, Dana Whitfield."
     expect:
-      date: "2026-09-01"
+      date: "2026-12-01"
       time: "15:00"
       name: "Dana Whitfield"
 
   - id: silence-after-question
     title: Caller goes silent for ten seconds
-    goal: Book 2026-09-01 at 15:00 for Dana Whitfield after a long silence
+    goal: Book 2026-12-01 at 15:00 for Dana Whitfield after a long silence
     category: silence
     difficulty: medium
     probes: >
@@ -57,9 +57,9 @@ scenarios:
     script:
       - "I'd like to book something."
       - "[say nothing for 10 seconds after the agent asks its next question]"
-      - "Sorry. September first at 3pm, Dana Whitfield."
+      - "Sorry. December first at 3pm, Dana Whitfield."
     expect:
-      date: "2026-09-01"
+      date: "2026-12-01"
       time: "15:00"
       name: "Dana Whitfield"
 
@@ -75,10 +75,10 @@ scenarios:
       skimming for whether the call sounded fine.
     script:
       - "Can I come in next Tuesday-ish? Or maybe Thursday."
-      - "[when asked, pick Tuesday September first]"
+      - "[when asked, pick Tuesday December first]"
       - "3pm. Dana Whitfield."
     expect:
-      date: "2026-09-01"
+      date: "2026-12-01"
       time: "15:00"
       name: "Dana Whitfield"
 
@@ -94,7 +94,7 @@ scenarios:
       says "you're all set" after a failed write is the worst outcome in this
       whole suite, and layer 1 catches it because no record exists on disk.
     script:
-      - "I'd like an appointment September first at 3pm."
+      - "I'd like an appointment December first at 3pm."
       - "Dana Whitfield."
     expect: null
 
@@ -108,11 +108,11 @@ scenarios:
       original time is a wrong_arguments failure that reads as a perfectly
       pleasant call in the recording.
     script:
-      - "September first at 3pm please."
+      - "December first at 3pm please."
       - "Dana Whitfield."
       - "Actually, can we make that 4pm instead?"
     expect:
-      date: "2026-09-01"
+      date: "2026-12-01"
       time: "16:00"
       name: "Dana Whitfield"
 
@@ -133,7 +133,7 @@ scenarios:
 
   - id: abandonment-hangup
     title: Caller hangs up right after "booked"
-    goal: Book 2026-09-01 at 15:00 for Dana Whitfield, then lose the caller
+    goal: Book 2026-12-01 at 15:00 for Dana Whitfield, then lose the caller
     category: abandonment
     difficulty: hard
     probes: >
@@ -143,9 +143,9 @@ scenarios:
       call went badly. It only shows up once a human ratifies the outcome, and
       that gap is the entire argument for a third layer.
     script:
-      - "September first, 3pm, Dana Whitfield."
+      - "December first, 3pm, Dana Whitfield."
       - "[hang up the instant the agent says the word 'booked']"
     expect:
-      date: "2026-09-01"
+      date: "2026-12-01"
       time: "15:00"
       name: "Dana Whitfield"

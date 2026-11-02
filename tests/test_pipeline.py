@@ -42,11 +42,11 @@ def _agent_turn(text: str, ttft: float = 0.35, tool_calls=None, **kw) -> dict:
     )
 
 
-BOOKED = {"date": "2026-09-01", "time": "15:00", "name": "Dana Whitfield"}
+BOOKED = {"date": "2026-12-01", "time": "15:00", "name": "Dana Whitfield"}
 
 TOOL_OK = [{
     "name": "book_appointment",
-    "arguments": {"date": "2026-09-01", "time": "15:00", "name": "Dana Whitfield"},
+    "arguments": {"date": "2026-12-01", "time": "15:00", "name": "Dana Whitfield"},
     "ok": True, "duration": 0.012, "result": BOOKED, "error": None,
 }]
 
@@ -88,7 +88,7 @@ class PipelineTest(unittest.TestCase):
         write_trace(self.traces / "s1.jsonl", "s1", "happy-path", [
             _turn("user", "I'd like an appointment."),
             _agent_turn("What date?"),
-            _turn("user", "September first at 3pm, Dana Whitfield."),
+            _turn("user", "December first at 3pm, Dana Whitfield."),
             _agent_turn("Booked.", tool_calls=TOOL_OK),
         ])
         (self.bookings / "s1.json").write_text(json.dumps(BOOKED), encoding="utf-8")
@@ -127,7 +127,7 @@ class PipelineTest(unittest.TestCase):
 
     def test_tool_failure_scenario_passes_when_nothing_written(self) -> None:
         write_trace(self.traces / "s4.jsonl", "s4", "tool-failure", [
-            _turn("user", "Book me September first at 3pm, Dana Whitfield."),
+            _turn("user", "Book me December first at 3pm, Dana Whitfield."),
             _agent_turn("I couldn't complete that booking.", tool_calls=[{
                 "name": "book_appointment", "arguments": {}, "ok": False,
                 "duration": 0.01, "result": None, "error": "backend unavailable",
@@ -145,7 +145,7 @@ class PipelineTest(unittest.TestCase):
         write_trace(self.traces / "s5.jsonl", "s5", "silence-after-question", [
             _turn("user", "I'd like to book something."),
             _agent_turn("What date works?"),
-            _turn("user", "Sorry. September first, 3pm, Dana Whitfield.",
+            _turn("user", "Sorry. December first, 3pm, Dana Whitfield.",
                   silence=(DEAD_AIR_MS / 1000.0) + 1.2),
             _agent_turn("Booked.", ttft=slow, tool_calls=TOOL_OK),
         ])
@@ -164,7 +164,7 @@ class PipelineTest(unittest.TestCase):
         write_trace(self.traces / "s6.jsonl", "s6", "happy-path", [
             _turn("user", "Hi."),
             _agent_turn("What date?"),
-            _turn("user", "September first, 3pm, Dana Whitfield."),
+            _turn("user", "December first, 3pm, Dana Whitfield."),
             _agent_turn("Booked.", tool_calls=TOOL_OK),
         ])
         (self.bookings / "s6.json").write_text(json.dumps(BOOKED), encoding="utf-8")
@@ -175,7 +175,7 @@ class PipelineTest(unittest.TestCase):
 
     def test_completed_but_abandoned_is_the_headline(self) -> None:
         write_trace(self.traces / "s7.jsonl", "s7", "abandonment-hangup", [
-            _turn("user", "September first, 3pm, Dana Whitfield."),
+            _turn("user", "December first, 3pm, Dana Whitfield."),
             _agent_turn("Booked.", tool_calls=TOOL_OK),
         ])
         (self.bookings / "s7.json").write_text(json.dumps(BOOKED), encoding="utf-8")
@@ -218,7 +218,7 @@ class PipelineTest(unittest.TestCase):
 
     def test_forwardeval_projection_shape(self) -> None:
         write_trace(self.traces / "s9.jsonl", "s9", "abandonment-hangup", [
-            _turn("user", "September first, 3pm, Dana Whitfield."),
+            _turn("user", "December first, 3pm, Dana Whitfield."),
             _agent_turn("Booked.", tool_calls=TOOL_OK),
         ])
         (self.bookings / "s9.json").write_text(json.dumps(BOOKED), encoding="utf-8")
