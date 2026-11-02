@@ -14,26 +14,64 @@ scenarios that are designed to break it, checks the outcome against the world
 rather than the transcript, and reports the one number a latency dashboard can
 never surface.
 
-## The headline
+Not an engineer? Start with [GUIDE.md](GUIDE.md), the plain-language version.
+
+## What the first real call caught
+
+The first real call ran on 2026-10-30: the `happy-path` scenario, a caller
+booking Tuesday, September 1st at 3 PM for Dana Whitfield. From the trace:
+
+```
+caller  Hi, I'd like to book an appointment.
+agent   Sure! May I have your name, please?
+caller  Tuesday, September 1st, 3 in the afternoon.
+agent   I just need your name to proceed with the appointment. What is your name?
+caller  Dana Whitfield
+agent   Your appointment has been successfully booked for September 1st at 3 PM, Dana!
+```
+
+Any transcript review passes that call. Then the scorer read the record the
+agent wrote:
+
+```json
+{"date": "2023-09-01", "time": "15:00", "name": "Dana Whitfield"}
+```
+
+Right day, right time, right name, wrong year: three years in the past, and a
+Friday, though the caller said Tuesday. The caller never said a year, so the
+model supplied one. The score:
 
 ```
 scenario                 L1    turns  dead   p95 ms  tags
 ---------------------------------------------------------
-happy-path               pass      4     0      760  -
-abandonment-hangup       pass      2     0     2810  latency_budget_exceeded,abandoned_by_caller
-off-topic                pass      2     0      760  -
-
-pass rate         3/3  (100%)
-response p50/p95  760ms / 2810ms
-within budget     75%
-
-completed-but-abandoned  1/1  (100%)
+happy-path               FAIL      8     5      n/a  wrong_arguments,dead_air
 ```
 
-Every call passed. One of them was a failure. The agent booked the
-appointment, wrote the record, matched every field, and the caller hung up
-anyway. **Completed-but-abandoned** is the metric nobody instruments and
-everybody feels.
+And the one failing check, from the run file:
+
+```json
+{"name": "field:date", "ok": false, "expected": "2026-09-01", "actual": "2023-09-01"}
+```
+
+The fix was one line of context: the agent's instructions now carry today's
+date and a rule against booking in the past. The point is the catch. This
+failure is invisible in the transcript, and it shows up only when you check the
+world.
+
+The same call exposed two bugs in the trace recorder, both since fixed: caller
+turns were recorded twice (8 turns for a 6-turn call), and every turn's latency
+and token metrics were dropped (no p95). The scenario's own date had also gone
+stale by the day of the call, so with past dates now refused, the fixtures
+moved to 2026-12-01.
+
+## The headline metric
+
+**Completed-but-abandoned**: layer 1 passed, the record is right, and a person
+still judged the call a failure. It is the metric nobody instruments and
+everybody feels. The `abandonment-hangup` scenario exists to produce it: the
+agent books correctly and the caller hangs up the instant it says "booked."
+Nothing in the transcript, the latency breakdown, or the record shows that call
+went badly. Only a recorded human verdict does, which is why layer 3 exists.
 
 ## How it works
 
@@ -71,8 +109,8 @@ A run projects into [ForwardEval's](https://github.com/johnaantony/forwardeval)
 dashboard and can be compared side by side:
 
 ```bash
-make score LABEL=baseline
-.venv/bin/python -m turneval.cli score --export-forwardeval ../forwardeval/results/voice-baseline.json
+PYTHONPATH=src .venv/bin/python -m turneval.cli score --label baseline \
+  --export-forwardeval ../forwardeval/results/voice-baseline.json
 ```
 
 The two harnesses share a headline metric under different names.
@@ -104,7 +142,7 @@ make score LABEL=baseline                   # score every trace
 Then record the layer-3 verdict after listening back:
 
 ```bash
-.venv/bin/python -m turneval.cli outcome <session-id> --reject --hung-up --note "left on confirmation"
+PYTHONPATH=src .venv/bin/python -m turneval.cli outcome <session-id> --reject --hung-up --note "left on confirmation"
 ```
 
 ## The scenarios
@@ -124,6 +162,10 @@ someone interrupts it.
 | `off-topic` | Scope discipline, checked inversely |
 | `abandonment-hangup` | The headline: layer 1 passes, the caller left |
 
+Scenario dates are fixed at 2026-12-01, and the agent refuses to book in the
+past, so once that date passes, move the dates in `scenarios/scenarios.yaml`
+forward. Dates relative to the day of the call are planned.
+
 ## A macOS note
 
 Every Make target runs with `PYTHONPATH=src` rather than relying on the
@@ -135,5 +177,15 @@ on every reinstall, so the Makefile sidesteps it entirely.
 
 ## Status
 
-The harness, scenarios, scoring, and projection are built and tested. No real
-call has been run through it yet: that needs LiveKit credentials.
+The first real call was scored on 2026-10-30 (above). Running the full scenario
+set on real calls is next. Built and tested: the agent, the trace recorder, the
+eight scenarios, three-layer scoring, the layer-3 outcome log, and the
+ForwardEval projection. Planned after that: a comparison gate for model swaps
+(hold the agent constant, change one stage, and list exactly which calls
+flipped, with per-stage latency and cost), then a live view of each call as it
+is scored.
+
+## License
+
+MIT. The agent runs on [LiveKit Agents](https://github.com/livekit/agents),
+which is Apache-2.0.
