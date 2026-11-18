@@ -10,9 +10,10 @@
 PY := .venv/bin/python
 export PYTHONPATH := src
 
-.PHONY: help sync unhide test scenarios score console dev clean
+.PHONY: help runbook sync unhide test scenarios score console dev clean
 
 help:
+	@echo "make runbook    which RUNBOOK.md steps are done, and what to run next"
 	@echo "make sync       install dependencies"
 	@echo "make test       run the test suite"
 	@echo "make scenarios  list the scenario set"
@@ -27,6 +28,9 @@ sync:
 
 unhide:
 	@chflags nohidden .venv/lib/python*/site-packages/*.pth 2>/dev/null || true
+
+runbook:
+	@$(PY) -m turneval.cli runbook
 
 test:
 	$(PY) -m unittest discover -s tests -v

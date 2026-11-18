@@ -2,6 +2,12 @@
 
 Outcome evaluation for voice agents.
 
+> [!TIP]
+> **New here? Start with the [Runbook](RUNBOOK.md).** Eight steps from a fresh
+> clone to a ship decision you can defend, written for forward-deployed
+> engineers and PMs. After setup, `make runbook` shows which steps you have
+> done and the exact command to run next.
+
 Voice observability answers "what happened." It does not answer "was it any
 good," and for voice agents those are different questions with different
 owners. Turn-by-turn playback and a latency breakdown tell you the mechanics of
@@ -134,6 +140,7 @@ LiveKit credentials cover STT, LLM, and TTS with no other provider account.
 ## Running a call
 
 ```bash
+make runbook                                # where you are, and what to run next
 make scenarios                              # see the scenario set
 make console SCENARIO=ambiguous-date        # talk to it from your terminal
 make score LABEL=baseline                   # score every trace

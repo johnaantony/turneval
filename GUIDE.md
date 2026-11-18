@@ -3,7 +3,8 @@
 **For the person who has to say "yes, ship it" to a customer.**
 
 You do not need to be an engineer to read this. Commands live in one section near
-the end; everything else is plain language.
+the end; everything else is plain language. When you are ready to try it, the
+[Runbook](RUNBOOK.md) walks you through it in eight steps.
 
 ---
 
@@ -132,8 +133,9 @@ verdict, because only you know whether you would have accepted that call:
 PYTHONPATH=src .venv/bin/python -m turneval.cli outcome <session-id> --reject --note "why"
 ```
 
-(Leave off `--reject` if you would have accepted it. The session id is printed in
-the score table's run file and in `data/traces/`.)
+(Leave off `--reject` if you would have accepted it. `make runbook` prints this
+command with the session id filled in, and shows what to do after it: the
+[Runbook](RUNBOOK.md) covers all eight steps.)
 
 ## The eight scenarios
 
