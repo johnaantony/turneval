@@ -1,5 +1,6 @@
 """Command line interface.
 
+    turneval runbook                which runbook steps are done, and what to run next
     turneval scenarios              list the scenario set
     turneval score                  score traces into results/<run-id>.json
     turneval outcome <id> --reject  record the layer-3 human ratification
@@ -11,9 +12,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
+from turneval import runbook
 from turneval.export import forwardeval
 from turneval.runner import run_from_disk
 from turneval.scenarios import load_scenarios
@@ -161,9 +163,20 @@ def cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_runbook(args: argparse.Namespace) -> int:
+    """Print each RUNBOOK.md step's state, read from the files on disk."""
+    today = date.today()
+    print(runbook.render(runbook.status(Path(args.root), today), today))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="turneval", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
+
+    p = sub.add_parser("runbook", help="which runbook steps are done, and what to run next")
+    p.add_argument("--root", default=str(ROOT), help="the TurnEval checkout to read")
+    p.set_defaults(func=cmd_runbook)
 
     p = sub.add_parser("scenarios", help="list the scenario set")
     p.add_argument("--scenarios", default=str(DEFAULT_SCENARIOS))
